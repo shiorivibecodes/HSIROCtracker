@@ -5,6 +5,8 @@ import feedparser
 import pandas as pd
 import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import nltk
+nltk.download('vader_lexicon')
 
 # 1. SET UP THE PAGE
 st.set_page_config(page_title="Vibecoding: Taiwan Strait vs HSI", layout="wide")
