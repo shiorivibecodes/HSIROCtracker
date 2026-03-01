@@ -3,11 +3,21 @@ import yfinance as yf
 import plotly.graph_objects as go
 import feedparser
 import pandas as pd
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 # 1. SET UP THE PAGE
 st.set_page_config(page_title="Vibecoding: Taiwan Strait vs HSI", layout="wide")
 st.title("📈 Hang Seng Index vs. Taiwan Strait News")
 st.write("Tracking the 'vibes' between geopolitical news and the Hong Kong market.")
+# Download the vibe dictionary
+nltk.download('vader_lexicon')
+analyzer = SentimentIntensityAnalyzer()
+
+# Define the scoring function so it's ready to use later
+def get_vibe_score(text):
+    score = analyzer.polarity_scores(text)
+    return score['compound']
 
 # 2. FETCH HANG SENG INDEX DATA
 with st.spinner('Fetching market data...'):
@@ -29,22 +39,49 @@ feeds = [
 
 keywords = ["Taiwan", "China", "Military", "Strait", "PLA", "Drills", "Defense", "Naval", "Vessel", "Beijing", "Taipei", "Conflict"]
 
-# Track if we found any news to avoid a blank screen
+# --- START REPLACEMENT ---
 news_found = False
+scores = [] # We'll store all the vibes here to calculate an average later
+
+# Initialize the analyzer (Make sure you have nltk.download('vader_lexicon') at the top of your script!)
+sia = SentimentIntensityAnalyzer()
 
 for url in feeds:
     feed = feedparser.parse(url)
     for entry in feed.entries:
-        # Check if any keyword is in the title
         if any(key.lower() in entry.title.lower() for key in keywords):
             news_found = True
-            # Use 'getattr' to safely get the date if 'published' is missing
+            
+            # 1. CALCULATE THE VIBE
+            vibe_score = sia.polarity_scores(entry.title)['compound']
+            scores.append(vibe_score)
+            
+            # 2. CHOOSE COLOR BASED ON VIBE
+            # Negative news (drills, conflict) usually scores below -0.1
+            if vibe_score < -0.1:
+                st.error(f"🔴 **Negative Vibe ({vibe_score})**")
+            elif vibe_score > 0.1:
+                st.success(f"🟢 **Positive Vibe ({vibe_score})**")
+            else:
+                st.info(f"⚪ **Neutral Vibe ({vibe_score})**")
+
+            # 3. DISPLAY THE NEWS
             date = getattr(entry, 'published', 'Recent')
-            st.warning(f"**{date}**: {entry.title}")
+            st.write(f"**{date}**: {entry.title}")
             st.write(f"[Read more]({entry.link})")
+            st.divider() # Adds a nice line between stories
+
+# 4. SHOW THE TOTAL MARKET VIBE
+if news_found:
+    avg_vibe = sum(scores) / len(scores)
+    # This creates a cool 'odometer' style display
+    st.metric(label="Overall News Sentiment", value=f"{avg_vibe:.2f}", 
+              delta="Tense" if avg_vibe < 0 else "Calm")
 
 if not news_found:
     st.info("No Taiwan Strait military news detected in the last few hours.")
+# --- END REPLACEMENT ---
+
 
 # 4. CREATE THE CHART
 st.subheader("Hang Seng Index (Recent Performance)")
