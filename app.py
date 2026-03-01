@@ -10,30 +10,44 @@ st.title("📈 Hang Seng Index vs. Taiwan Strait News")
 st.write("Tracking the 'vibes' between geopolitical news and the Hong Kong market.")
 
 # 2. FETCH HANG SENG INDEX DATA
-# We use '^HSI' which is the ticker symbol for the Hang Seng Index
 with st.spinner('Fetching market data...'):
-    hsi_data = yf.download('^HSI', period='1mo', interval='1d') 
-    hsi_data.columns = hsi_data.columns.get_level_values(0)
+    # We download 2 months to avoid 'weekend gaps' on the chart
+    hsi_data = yf.download('^HSI', period='2mo', interval='1d')
+    # Flatten the columns to avoid the 'blank chart' bug
+    if not hsi_data.empty:
+        hsi_data.columns = hsi_data.columns.get_level_values(0)
 
+# 3. FETCH NEWS (MULTIPLE RSS FEEDS)
+st.subheader("Latest Geopolitical Headlines")
 
-# 3. FETCH NEWS (RSS FEED)
-# We are using a public news feed. In a 'pro' version, you'd use a search API.
-# For now, we'll pull the latest World News to look for keywords.
-st.subheader("Latest Relevant Headlines")
-rss_url = "https://feeds.bbci.co.uk"
-feed = feedparser.parse(rss_url)
+# List of feeds for better coverage in 2026
+feeds = [
+    "https://feeds.bbci.co.uk",
+    "https://www.taiwannews.com.tw",
+    "https://www.aljazeera.com"
+]
 
-# Keywords we want to highlight
-keywords = ["Taiwan", "China", "Military", "Strait", "PLA", "Drills"]
+keywords = ["Taiwan", "China", "Military", "Strait", "PLA", "Drills", "Defense", "Naval", "Vessel", "Beijing", "Taipei", "Conflict"]
 
-for entry in feed.entries:
-    # Check if any of our keywords are in the headline
-    if any(key.lower() in entry.title.lower() for key in keywords):
-        st.warning(f"**{entry.published}**: {entry.title}")
-        st.write(f"[Read more]({entry.link})")
+# Track if we found any news to avoid a blank screen
+news_found = False
+
+for url in feeds:
+    feed = feedparser.parse(url)
+    for entry in feed.entries:
+        # Check if any keyword is in the title
+        if any(key.lower() in entry.title.lower() for key in keywords):
+            news_found = True
+            # Use 'getattr' to safely get the date if 'published' is missing
+            date = getattr(entry, 'published', 'Recent')
+            st.warning(f"**{date}**: {entry.title}")
+            st.write(f"[Read more]({entry.link})")
+
+if not news_found:
+    st.info("No Taiwan Strait military news detected in the last few hours.")
 
 # 4. CREATE THE CHART
-st.subheader("Hang Seng Index (Past 30 Days)")
+st.subheader("Hang Seng Index (Recent Performance)")
 if not hsi_data.empty:
     fig = go.Figure(data=[go.Candlestick(
         x=hsi_data.index,
@@ -47,3 +61,4 @@ if not hsi_data.empty:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.error("Could not load market data. Try refreshing.")
+
