@@ -12,7 +12,9 @@ st.write("Tracking the 'vibes' between geopolitical news and the Hong Kong marke
 # 2. FETCH HANG SENG INDEX DATA
 # We use '^HSI' which is the ticker symbol for the Hang Seng Index
 with st.spinner('Fetching market data...'):
-    hsi_data = yf.download('^HSI', period='1mo', interval='1d')
+    hsi_data = yf.download('^HSI', period='1mo', interval='1d') 
+    hsi_data.columns = hsi_data.columns.get_level_values(0)
+
 
 # 3. FETCH NEWS (RSS FEED)
 # We are using a public news feed. In a 'pro' version, you'd use a search API.
